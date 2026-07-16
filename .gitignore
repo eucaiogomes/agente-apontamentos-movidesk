@@ -1,0 +1,24 @@
+# Segredos
+.env
+*.env
+!.env.example
+
+# Saídas geradas (relatórios)
+Relatorios Movidesk/
+*.png
+*.pdf
+dados_*.json
+resumo_*.json
+apontamentos_*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

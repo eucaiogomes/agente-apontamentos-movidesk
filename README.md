@@ -1,0 +1,84 @@
+# Agente + Skill — Relatórios de Apontamentos Movidesk (equipe Lector)
+
+Pacote para **Claude Code** que gera, de forma determinística, o pacote diário de relatórios de
+apontamentos da equipe a partir da API pública do Movidesk. Como todo o trabalho pesado está em dois
+scripts Python, **qualquer modelo produz o mesmo resultado** — o modelo apenas orquestra e confere.
+
+Saídas geradas (do **dia útil anterior**, ou de uma data informada):
+
+- `Apontamentos_<Agente>_<data>.png` — relatório individual (tabela de apontamentos + gráficos)
+- `Equipe_<data>.png` — dashboard da equipe (meta 90%; jornada 8h30, exceto Ricardo Schutz 6h)
+- `dados_<data>.json` / `resumo_<data>.json` — dados completos e resumo agregado
+- `Analise_Operacional_<data>.pdf` — análise gerencial em 4 páginas (resumo executivo, onde o tempo foi
+  gasto, perfil individual, fluxo de status/voz do cliente)
+
+## Estrutura
+
+```
+agents/
+  relatorios-movidesk.md          # definição do subagente (sem modelo fixo — roda em qualquer modelo)
+skills/
+  relatorios-movidesk/
+    SKILL.md                      # instruções do fluxo (seguíveis por qualquer modelo)
+    scripts/
+      pipeline_movidesk.py        # coleta a API + gera PNGs + JSONs
+      gerar_analise.py            # gera o PDF de análise a partir dos JSONs
+    references/
+      perfis_equipe.md            # perfis, jornadas, meta e regras de negócio
+```
+
+## Instalação
+
+1. Copie as pastas para o diretório de configuração do Claude Code (nível usuário):
+
+   ```
+   cp -r agents/relatorios-movidesk.md   ~/.claude/agents/
+   cp -r skills/relatorios-movidesk      ~/.claude/skills/
+   ```
+
+   (No Windows, o destino é `%USERPROFILE%\.claude\`.)
+
+2. Instale as dependências Python:
+
+   ```
+   pip install requests matplotlib pandas openpyxl pymupdf
+   ```
+
+3. Configure o token da API. Copie `.env.example` para `.env` e preencha, **ou** exporte a variável:
+
+   ```
+   export MOVIDESK_TOKEN=seu-token        # Linux/macOS
+   $env:MOVIDESK_TOKEN = "seu-token"      # PowerShell
+   ```
+
+   > O token **não** está versionado neste repositório — é lido de `MOVIDESK_TOKEN`.
+
+## Uso
+
+No Claude Code:
+
+- `/relatorios-movidesk` (invoca a skill), ou peça *"puxa os relatórios de apontamentos"*.
+- Para delegar a um subagente: *"usa o agente relatorios-movidesk"*.
+- Uma data específica é opcional (`AAAA-MM-DD`); sem data, usa o dia útil anterior.
+
+Ou direto pela linha de comando:
+
+```
+python skills/relatorios-movidesk/scripts/pipeline_movidesk.py [AAAA-MM-DD]
+python skills/relatorios-movidesk/scripts/gerar_analise.py    [AAAA-MM-DD]
+```
+
+## Configuração
+
+| Variável                   | Obrigatória | Padrão                          | Descrição                          |
+|----------------------------|-------------|---------------------------------|------------------------------------|
+| `MOVIDESK_TOKEN`           | sim         | —                               | Token da API pública do Movidesk   |
+| `RELATORIOS_MOVIDESK_DIR`  | não         | `~/Downloads/Relatorios Movidesk` | Pasta de saída dos relatórios     |
+
+Ao mudar o time, edite `skills/relatorios-movidesk/references/perfis_equipe.md` **e** os dicts
+`PERFIS`/`METAS` nos dois scripts.
+
+## Notas
+
+- A API do Movidesk é **ao vivo**: rodar em horários diferentes muda os números.
+- O plano atual da API não expõe SLA formal; a leitura do funil usa o fluxo de status como proxy.
