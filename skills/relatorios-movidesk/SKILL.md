@@ -95,9 +95,22 @@ dashboard estilo mission control com:
   confirmar, reprovados de HML, feedbacks urgentes) — checkboxes persistem no navegador;
 - log das últimas execuções do runner.
 
-Abra o painel direto no navegador (é um arquivo local). Para **backfill** de um dia PENDENTE:
-`python scripts/runner_diario.py AAAA-MM-DD`. Para reconstruir só o painel:
-`python scripts/mission_control.py`.
+### Aplicação (PWA) — servidor local sempre de pé
+
+`scripts/mission_server.py` serve o painel em **http://localhost:8765** como aplicação instalável
+(PWA: manifest + service worker + ícones — no Chrome/Edge use "Instalar app" para virar janela
+própria). Pela interface dá para **dar play no agente**: o botão "▶ RODAR MISSÃO" dispara a missão
+do dia útil anterior e cada dia PENDENTE tem um ▶ de backfill; o status ("AGENTE OCIOSO" /
+"EM EXECUÇÃO") atualiza sozinho e a página recarrega ao terminar.
+
+API: `GET /api/status` e `POST /api/run` (`{"date":"AAAA-MM-DD"}` opcional; 409 se já houver missão
+rodando). O servidor sobe sozinho: `mission_server.vbs` na pasta Inicializar (logon) + tarefa
+`RelatoriosMovideskServer` diária às 08:50 (idempotente — porta ocupada = já está rodando, sai com 0).
+Logs em `server_log.txt`; saída dos runs disparados pela API em `runner_launch.log`.
+
+Backfill por linha de comando (alternativa ao ▶): `python scripts/runner_diario.py AAAA-MM-DD`.
+Reconstruir só o painel: `python scripts/mission_control.py`. O painel continua funcionando aberto
+como arquivo local — os controles de play só aparecem quando servido pelo mission_server.
 
 Recriar a tarefa agendada (se trocar de máquina): use os modelos do repositório
 (`relatorios_movidesk_task.xml.example` + `scripts/runner_diario.cmd.example`) e registre com

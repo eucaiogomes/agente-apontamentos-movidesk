@@ -107,6 +107,20 @@ schtasks /Create /F /TN "RelatoriosMovideskDiario" /XML relatorios_movidesk_task
 Backfill de um dia pendente: `python scripts/runner_diario.py AAAA-MM-DD`.
 Reconstruir só o painel: `python scripts/mission_control.py`.
 
+## Aplicação (PWA) — dar play no agente pela interface
+
+`scripts/mission_server.py` serve o painel em **http://localhost:8765** como aplicação instalável
+(PWA: manifest + service worker + ícones). No Chrome/Edge, use **"Instalar app"** para virar uma
+janela própria que fica sempre aberta. Pela interface:
+
+- **▶ RODAR MISSÃO** dispara a missão do dia útil anterior; cada dia PENDENTE tem um ▶ de backfill;
+- o status ("AGENTE OCIOSO" / "EM EXECUÇÃO") atualiza sozinho e a página recarrega ao terminar;
+- API: `GET /api/status` e `POST /api/run` (`{"date":"AAAA-MM-DD"}` opcional; 409 se ocupado).
+
+Autostart (sem admin): copie `scripts/mission_server.vbs.example` → `mission_server.vbs` (ajuste os
+caminhos), coloque uma cópia na pasta Inicializar (`shell:startup`) e registre a tarefa das 08:50 com
+`mission_server_task.xml.example` — o servidor é idempotente (porta ocupada = já rodando, sai com 0).
+
 ## Notas
 
 - A API do Movidesk é **ao vivo**: rodar em horários diferentes muda os números.

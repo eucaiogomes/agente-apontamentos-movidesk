@@ -1,0 +1,6 @@
+' Lanca o mission_server.py em janela oculta.
+' 1. Ajuste os dois caminhos abaixo (python.exe e mission_server.py).
+' 2. Salve como mission_server.vbs ao lado do mission_server.py.
+' 3. Copie tambem para a pasta Inicializar (shell:startup) para subir no logon.
+CreateObject("WScript.Shell").Run """C:\CAMINHO\PARA\python.exe"" """ & _
+  """C:\CAMINHO\PARA\.claude\skills\relatorios-movidesk\scripts\mission_server.py""", 0, False

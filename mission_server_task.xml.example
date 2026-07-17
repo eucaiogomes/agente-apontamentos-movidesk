@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!-- Tarefa que garante o mission_server de pe todo dia as 08:50 (idempotente).
+     Combine com o mission_server.vbs na pasta Inicializar (shell:startup) para o logon.
+     Ajuste o caminho do .vbs, salve em UTF-16 e registre:
+     schtasks /Create /F /TN "RelatoriosMovideskServer" /XML mission_server_task.xml
+     (Gatilho de logon via schtasks exigiria admin; por isso o par 08:50 + Inicializar.) -->
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Mission Control Movidesk: garante o servidor local (localhost:8765) de pe antes da missao das 09:00.</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-01-01T08:50:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Enabled>true</Enabled>
+    <!-- Priority 5 obrigatoria: sem ela o Windows 11 congela a tarefa em prioridade idle. -->
+    <Priority>5</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\Windows\System32\wscript.exe</Command>
+      <Arguments>"C:\CAMINHO\PARA\.claude\skills\relatorios-movidesk\scripts\mission_server.vbs"</Arguments>
+      <WorkingDirectory>C:\CAMINHO\PARA\.claude\skills\relatorios-movidesk\scripts</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

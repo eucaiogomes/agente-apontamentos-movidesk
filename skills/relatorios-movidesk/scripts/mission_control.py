@@ -141,6 +141,18 @@ ul.todo { list-style:none; } ul.todo li { padding:5px 0; display:flex; gap:9px; 
 ul.todo input { accent-color:var(--ok); transform:translateY(2px); }
 ul.todo li.done label { color:var(--dim); text-decoration:line-through; }
 pre { color:var(--dim); font-size:12px; overflow-x:auto; }
+#ctl { display:none; align-items:center; gap:10px; }
+.btn { background:rgba(34,211,127,.12); color:var(--ok); border:1px solid var(--ok);
+       border-radius:6px; padding:6px 14px; font:700 13px ui-monospace,Consolas,monospace;
+       letter-spacing:1px; cursor:pointer; }
+.btn:hover { background:rgba(34,211,127,.25); }
+.btn:disabled { opacity:.4; cursor:wait; }
+.btn.mini { padding:0 7px; font-size:11px; margin-left:6px; }
+.pill { display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700;
+        border:1px solid var(--border); color:var(--dim); }
+.pill.ok { color:var(--ok); border-color:var(--ok); }
+.pill.warn { color:var(--warn); border-color:var(--warn); animation:pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity:.45; } }
 """
 
 JS = """
@@ -152,6 +164,48 @@ document.querySelectorAll('input.todo-check').forEach(function (cb) {
     cb.closest('li').classList.toggle('done', cb.checked);
   });
 });
+
+/* --- Controles do agente (so funcionam quando servido pelo mission_server.py) --- */
+var estavaRodando = false;
+function api(path, opts) {
+  return fetch(path, opts).then(function (r) { return r.json(); }).catch(function () { return null; });
+}
+function atualizaPill(s) {
+  var pill = document.getElementById('run-status');
+  var play = document.getElementById('play');
+  if (s.running) {
+    pill.textContent = 'EM EXECUCAO \\u00b7 ' + (s.date || '');
+    pill.className = 'pill warn';
+    play.disabled = true;
+    estavaRodando = true;
+  } else {
+    if (estavaRodando) { location.reload(); return; }
+    pill.textContent = 'AGENTE OCIOSO';
+    pill.className = 'pill ok';
+    play.disabled = false;
+  }
+}
+function poll() {
+  api('/api/status').then(function (s) {
+    if (!s) return;  // aberto como arquivo local: controles ficam ocultos
+    document.getElementById('ctl').style.display = 'flex';
+    atualizaPill(s);
+    setTimeout(poll, s.running ? 3000 : 15000);
+  });
+}
+function roda(dateStr) {
+  api('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dateStr ? { date: dateStr } : {}) })
+    .then(function () { estavaRodando = true; poll(); });
+}
+document.getElementById('play').addEventListener('click', function () { roda(null); });
+document.querySelectorAll('.play-day').forEach(function (b) {
+  b.addEventListener('click', function () { b.disabled = true; roda(b.dataset.date); });
+});
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  navigator.serviceWorker.register('/sw.js').catch(function () {});
+}
+poll();
 """
 
 def _passos_html(steps):
@@ -183,7 +237,9 @@ def build():
         elif tem_resumo:
             chip = '<span class="chip ok">OK &middot; manual</span>'
         else:
-            chip = '<span class="chip pend">PENDENTE</span>'
+            chip = ('<span class="chip pend">PENDENTE</span>'
+                    f'<button class="btn mini play-day" data-date="{d}" '
+                    f'title="Backfill de {d}">&#9654;</button>')
             pendentes += 1
         if run:
             met = run
@@ -253,10 +309,16 @@ def build():
     data_ref = '/'.join(reversed((ultimo_com_dados or alvo.isoformat()).split('-')))
 
     doc = ('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">'
+           '<meta name="viewport" content="width=device-width, initial-scale=1">'
            '<meta http-equiv="refresh" content="300">'
+           '<meta name="theme-color" content="#0b1020">'
+           '<link rel="manifest" href="/manifest.json">'
+           '<link rel="icon" href="/icon-192.png">'
            '<title>Mission Control - Apontamentos Movidesk</title>'
            f'<style>{CSS}</style></head><body>'
            '<header><h1>MISSION CONTROL <b>&#9646;</b> APONTAMENTOS MOVIDESK</h1>'
+           '<div id="ctl"><button id="play" class="btn" title="Roda a missao do dia util anterior">'
+           '&#9654; RODAR MISSAO</button><span id="run-status" class="pill">&hellip;</span></div>'
            f'<div class="meta">gerado {gerado} &middot; agendado seg&ndash;sex 09:00 '
            '(tarefa RelatoriosMovideskDiario) &middot; auto-refresh 5 min</div></header>'
            '<div class="grid">'

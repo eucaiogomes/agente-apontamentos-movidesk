@@ -22,10 +22,12 @@ Tudo mora na skill `relatorios-movidesk`:
       SKILL.md                       (instruções completas)
 
 O fluxo roda sozinho seg–sex às 09:00 (tarefa do Windows `RelatoriosMovideskDiario` → runner_diario.py).
-O painel `mission_control.html` na pasta de saída mostra missões OK/FALHA/PENDENTE, pendências do dia
-e o log. Se o usuário pedir o relatório "de hoje/de ontem", cheque o painel/estado primeiro: pode já
-ter sido gerado pelo cron — aí basta resumir e conferir. Dias PENDENTES = backfill:
-`python scripts/runner_diario.py AAAA-MM-DD`.
+A aplicação Mission Control fica em **http://localhost:8765** (mission_server.py, sempre de pé via
+pasta Inicializar + tarefa `RelatoriosMovideskServer` 08:50): painel com missões OK/FALHA/PENDENTE,
+pendências do dia, log, e botão ▶ para disparar missões (`POST /api/run`, `GET /api/status`).
+Se o usuário pedir o relatório "de hoje/de ontem", cheque `GET /api/status` e o `mission_state.json`
+primeiro: pode já ter sido gerado pelo cron — aí basta resumir e conferir. Dias PENDENTES = backfill:
+`POST /api/run {"date":"AAAA-MM-DD"}` ou `python scripts/runner_diario.py AAAA-MM-DD`.
 
 Prefira invocar a skill `relatorios-movidesk` (tool Skill) e seguir o SKILL.md. Se a invocação
 não estiver disponível, execute os passos abaixo direto.
