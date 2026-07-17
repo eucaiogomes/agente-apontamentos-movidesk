@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!-- Modelo da tarefa agendada (seg-sex 09:00).
+     1. Ajuste o caminho do runner_diario.cmd (copie de scripts/runner_diario.cmd.example).
+     2. Salve como relatorios_movidesk_task.xml em UTF-16 (o schtasks exige o encoding da declaracao).
+     3. Registre: schtasks /Create /F /TN "RelatoriosMovideskDiario" /XML relatorios_movidesk_task.xml -->
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Relatorios Movidesk: puxa o dia util anterior completo (PNGs, JSONs, PDF) e atualiza o Mission Control. Seg-sex 09:00.</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-01-01T09:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByWeek>
+        <DaysOfWeek><Monday/><Tuesday/><Wednesday/><Thursday/><Friday/></DaysOfWeek>
+        <WeeksInterval>1</WeeksInterval>
+      </ScheduleByWeek>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+    <Enabled>true</Enabled>
+    <!-- IMPORTANTE: sem Priority 5 a tarefa roda em prioridade idle e o Windows 11
+         praticamente congela o processo (ele fica minutos sem ganhar CPU). -->
+    <Priority>5</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\CAMINHO\PARA\.claude\skills\relatorios-movidesk\scripts\runner_diario.cmd</Command>
+      <WorkingDirectory>C:\CAMINHO\PARA\.claude\skills\relatorios-movidesk\scripts</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

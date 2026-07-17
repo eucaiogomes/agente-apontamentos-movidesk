@@ -16,8 +16,16 @@ Tudo mora na skill `relatorios-movidesk`:
     ~/.claude/skills/relatorios-movidesk\
       scripts\pipeline_movidesk.py   (coleta API + PNGs + JSONs)
       scripts\gerar_analise.py       (PDF de análise, 4 páginas)
+      scripts\runner_diario.py       (missão completa: pipeline + PDF + verificação + painel)
+      scripts\mission_control.py     (gera o painel mission_control.html)
       references\perfis_equipe.md    (perfis, jornadas, meta, regras de negócio)
       SKILL.md                       (instruções completas)
+
+O fluxo roda sozinho seg–sex às 09:00 (tarefa do Windows `RelatoriosMovideskDiario` → runner_diario.py).
+O painel `mission_control.html` na pasta de saída mostra missões OK/FALHA/PENDENTE, pendências do dia
+e o log. Se o usuário pedir o relatório "de hoje/de ontem", cheque o painel/estado primeiro: pode já
+ter sido gerado pelo cron — aí basta resumir e conferir. Dias PENDENTES = backfill:
+`python scripts/runner_diario.py AAAA-MM-DD`.
 
 Prefira invocar a skill `relatorios-movidesk` (tool Skill) e seguir o SKILL.md. Se a invocação
 não estiver disponível, execute os passos abaixo direto.

@@ -1,0 +1,10 @@
+@echo off
+rem Wrapper do Agendador de Tarefas: registra o lancamento e delega ao runner Python.
+rem Copie para runner_diario.cmd (o cmd.exe exige quebras de linha CRLF!) ao lado do
+rem runner_diario.py e ajuste o caminho do python.exe se ele nao estiver no PATH.
+cd /d "%~dp0"
+set "LOGDIR=%USERPROFILE%\Downloads\Relatorios Movidesk"
+echo [%date% %time%] wrapper iniciado >> "%LOGDIR%\runner_launch.log"
+python "%~dp0runner_diario.py" %* >> "%LOGDIR%\runner_launch.log" 2>&1
+echo [%date% %time%] wrapper terminou com exit %errorlevel% >> "%LOGDIR%\runner_launch.log"
+exit /b %errorlevel%

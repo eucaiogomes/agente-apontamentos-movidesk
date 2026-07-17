@@ -23,6 +23,8 @@ skills/
     scripts/
       pipeline_movidesk.py        # coleta a API + gera PNGs + JSONs
       gerar_analise.py            # gera o PDF de análise a partir dos JSONs
+      runner_diario.py            # missão completa p/ cron: pipeline + PDF + verificação + painel
+      mission_control.py          # gera o painel mission_control.html (dashboard + to-do)
     references/
       perfis_equipe.md            # perfis, jornadas, meta e regras de negócio
 ```
@@ -86,6 +88,24 @@ Ambas podem vir do `.env` na raiz da skill ou do ambiente (o ambiente vence).
 
 Ao mudar o time, edite `skills/relatorios-movidesk/references/perfis_equipe.md` **e** os dicts
 `PERFIS`/`METAS` nos dois scripts.
+
+## Automação — cron diário + Mission Control
+
+`scripts/runner_diario.py` executa a missão completa do dia útil anterior (pipeline → PDF →
+verificação), grava o histórico em `mission_state.json` e reconstrói o painel
+**`mission_control.html`** na pasta de saída: status por dia (OK/FALHA/PENDENTE), checklist de
+passos, métricas, to-do de pendências derivado dos dados e log das execuções.
+
+Para agendar seg–sex às 09:00 no Windows (Agendador de Tarefas), registre uma tarefa apontando
+`pythonw.exe` para o `runner_diario.py` — recomendado via XML com `StartWhenAvailable=true`
+(executa assim que possível se a máquina estava desligada às 9h):
+
+```
+schtasks /Create /F /TN "RelatoriosMovideskDiario" /XML relatorios_movidesk_task.xml
+```
+
+Backfill de um dia pendente: `python scripts/runner_diario.py AAAA-MM-DD`.
+Reconstruir só o painel: `python scripts/mission_control.py`.
 
 ## Notas
 

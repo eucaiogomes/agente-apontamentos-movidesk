@@ -77,6 +77,38 @@ Não entregue sem olhar a saída — os scripts podem terminar com sucesso e ain
   nº de tickets, destaques positivos e críticos do dia, e os caminhos dos arquivos gerados.**
   Se alguém estiver ausente, **diga isso explicitamente** — é informação gerencial, não um detalhe.
 
+## Automação — cron diário + Mission Control
+
+O fluxo roda sozinho todo dia útil às **09:00** via Agendador de Tarefas do Windows
+(tarefa `RelatoriosMovideskDiario`, seg–sex, com "executar assim que possível" se a máquina
+estiver desligada no horário). A tarefa chama:
+
+    python scripts/runner_diario.py [AAAA-MM-DD]
+
+O runner executa a missão completa (pipeline → PDF → verificação de arquivos), grava o resultado
+em `mission_state.json` e reconstrói o painel **`mission_control.html`** na pasta de saída — um
+dashboard estilo mission control com:
+
+- status de cada dia útil (OK / FALHA / PENDENTE) e checklist de passos (API, PNG, PDF, CHK);
+- métricas do último dia (horas, % meta, tickets, ausentes) e links para PDF/PNG;
+- **to-do de pendências** derivado dos dados do dia (follow-ups em "Aguardando...", ausentes a
+  confirmar, reprovados de HML, feedbacks urgentes) — checkboxes persistem no navegador;
+- log das últimas execuções do runner.
+
+Abra o painel direto no navegador (é um arquivo local). Para **backfill** de um dia PENDENTE:
+`python scripts/runner_diario.py AAAA-MM-DD`. Para reconstruir só o painel:
+`python scripts/mission_control.py`.
+
+Recriar a tarefa agendada (se trocar de máquina): use os modelos do repositório
+(`relatorios_movidesk_task.xml.example` + `scripts/runner_diario.cmd.example`) e registre com
+`schtasks /Create /TN RelatoriosMovideskDiario /XML <arquivo>` (XML salvo em UTF-16).
+**Armadilhas aprendidas na prática:**
+- O XML precisa de `<Priority>5</Priority>` — sem isso a tarefa roda em prioridade *idle* e o
+  Windows 11 praticamente congela o processo (fica minutos sem ganhar CPU).
+- A ação deve chamar o **wrapper `runner_diario.cmd`** (com CRLF!), não o Python direto — o wrapper
+  registra cada lançamento em `runner_launch.log`, o que torna falhas do agendador diagnosticáveis.
+- O `pythonw.exe` do gerenciador de Python do Windows não funciona sob o Agendador; use `python.exe`.
+
 ## Notas de manutenção e armadilhas
 
 - A API é **ao vivo**: rodar em horários diferentes muda os números (apontamentos vão sendo lançados ao
