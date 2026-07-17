@@ -44,14 +44,21 @@ skills/
    pip install requests matplotlib pandas openpyxl pymupdf
    ```
 
-3. Configure o token da API. Copie `.env.example` para `.env` e preencha, **ou** exporte a variável:
+3. Configure o token da API — copie `.env.example` para a **raiz da skill instalada** e preencha:
+
+   ```
+   cp .env.example ~/.claude/skills/relatorios-movidesk/.env
+   ```
+
+   Os scripts leem esse `.env` sozinhos. Alternativamente, exporte a variável (tem precedência):
 
    ```
    export MOVIDESK_TOKEN=seu-token        # Linux/macOS
    $env:MOVIDESK_TOKEN = "seu-token"      # PowerShell
    ```
 
-   > O token **não** está versionado neste repositório — é lido de `MOVIDESK_TOKEN`.
+   > O token **não** está versionado — é lido de `MOVIDESK_TOKEN` (via `.env` ou ambiente). Por isso o
+   > código aqui é **idêntico** ao instalado localmente: sincronizar é um `cp`, sem editar segredo.
 
 ## Uso
 
@@ -74,6 +81,8 @@ python skills/relatorios-movidesk/scripts/gerar_analise.py    [AAAA-MM-DD]
 |----------------------------|-------------|---------------------------------|------------------------------------|
 | `MOVIDESK_TOKEN`           | sim         | —                               | Token da API pública do Movidesk   |
 | `RELATORIOS_MOVIDESK_DIR`  | não         | `~/Downloads/Relatorios Movidesk` | Pasta de saída dos relatórios     |
+
+Ambas podem vir do `.env` na raiz da skill ou do ambiente (o ambiente vence).
 
 Ao mudar o time, edite `skills/relatorios-movidesk/references/perfis_equipe.md` **e** os dicts
 `PERFIS`/`METAS` nos dois scripts.

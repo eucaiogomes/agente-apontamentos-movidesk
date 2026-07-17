@@ -13,10 +13,28 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
+def carrega_env():
+    """Le o .env da raiz da skill (CHAVE=valor) sem sobrescrever o ambiente real.
+
+    Mantem o segredo fora do codigo: este arquivo e identico no repositorio
+    publico e na instalacao local — so o .env (nao versionado) difere.
+    """
+    caminho = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    if not os.path.exists(caminho):
+        return
+    for linha in open(caminho, encoding='utf-8'):
+        linha = linha.strip()
+        if not linha or linha.startswith('#') or '=' not in linha:
+            continue
+        chave, valor = linha.split('=', 1)
+        os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
+
+carrega_env()
+
 TOKEN = os.environ.get('MOVIDESK_TOKEN')
 if not TOKEN:
-    sys.exit('Defina a variavel de ambiente MOVIDESK_TOKEN com o token da API Movidesk '
-             '(veja .env.example).')
+    sys.exit('MOVIDESK_TOKEN nao definido. Crie um .env na raiz da skill (veja .env.example) '
+             'ou exporte a variavel de ambiente.')
 SAIDA = os.environ.get('RELATORIOS_MOVIDESK_DIR',
                        os.path.join(os.path.expanduser('~'), 'Downloads', 'Relatorios Movidesk'))
 META_PCT = 90
@@ -179,13 +197,17 @@ for nome in AGENTES:
         'top_tickets': top,
     }
 
+# Quem nao aponta nada nao aparece em resumo_ag; grave o roster e os ausentes no
+# JSON para que gerar_analise.py consiga enxerga-los (senao somem do relatorio).
+ausentes = [a for a in AGENTES if a not in resumo_ag]
+
 resumo = {'data': DATA, 'status': dict(status_cnt),
           'resolvidos_no_dia': resolvidos_no_dia, 'agentes': resumo_ag,
+          'agentes_esperados': AGENTES, 'ausentes': ausentes,
           'feedbacks_clientes': feedbacks}
 with open(os.path.join(SAIDA, f'resumo_{DATA}.json'), 'w', encoding='utf-8') as f:
     json.dump(resumo, f, ensure_ascii=False, indent=1)
 
-ausentes = [a for a in AGENTES if a not in resumo_ag]
 for a in ausentes:
     print(f'AVISO: {a} sem apontamentos em {DATA} (folga/falta? nao e erro).')
 

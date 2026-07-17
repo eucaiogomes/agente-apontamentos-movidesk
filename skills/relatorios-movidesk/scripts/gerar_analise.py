@@ -19,6 +19,20 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+def carrega_env():
+    """Le o .env da raiz da skill (CHAVE=valor) sem sobrescrever o ambiente real."""
+    caminho = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    if not os.path.exists(caminho):
+        return
+    for linha in open(caminho, encoding='utf-8'):
+        linha = linha.strip()
+        if not linha or linha.startswith('#') or '=' not in linha:
+            continue
+        chave, valor = linha.split('=', 1)
+        os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
+
+carrega_env()
+
 BASE = os.environ.get('RELATORIOS_MOVIDESK_DIR',
                       os.path.join(os.path.expanduser('~'), 'Downloads', 'Relatorios Movidesk'))
 AZUL='#1f3b73'; VERDE='#059669'; VERM='#dc2626'; LAR='#d97706'; CINZA='#5a6577'; ESCURO='#1e293b'
@@ -61,8 +75,19 @@ def funcao(n):  return PERFIS.get(n, ('Agente', JORNADA_PADRAO))[0]
 TOTAL_MIN = sum(a['min'] for a in ag.values())
 N_TK = len(ts)
 pct = {n: ag[n]['min']/jornada(n)*100 for n in ag}
+# Media so entre quem apontou, para bater com o dashboard Equipe_<data>.png.
 pct_equipe = sum(pct.values())/len(pct) if pct else 0
-ausentes = [n for n in ag if ag[n]['min'] < 30]
+
+# Quem nao apontou NADA nao existe em `ag` — precisa vir do roster, senao some do
+# relatorio. Prefira o roster gravado pelo pipeline; PERFIS e o fallback para
+# resumos antigos, gerados antes de `agentes_esperados` existir.
+ESPERADOS = resumo.get('agentes_esperados') or list(PERFIS.keys())
+sem_apontamento = resumo.get('ausentes')
+if sem_apontamento is None:
+    sem_apontamento = [n for n in ESPERADOS if n not in ag]
+sub_registro = [n for n in ag if ag[n]['min'] < 30]
+ausentes = sem_apontamento + sub_registro
+presentes = [n for n in ag if n not in sub_registro]
 n_resolv = st.get('20 - Resolvido', 0)
 n_ag_cli = st.get('16 - Aguardando retorno cliente', 0)
 n_ag_dev = st.get('23 - Aguardando Desenvolvimento', 0)
@@ -140,12 +165,17 @@ visao = [
  f'• A equipe apontou {fmt(TOTAL_MIN)} no total em {N_TK} tickets distintos tocados no dia ({DATA_BR}).',
  f'• Aproveitamento de jornada: {pct_equipe:.1f}% (meta {META_PCT}%).',
  f'• {n_resolv} tickets em status "Resolvido"; maior ralo de tempo: ticket {ralo_id} "{tk_assunto[ralo_id][:46]}" ({fmt(ralo_min)}).']
-if ausentes:
-    visao.append('• Sem apontamento relevante: ' + ', '.join(ausentes) + ' (provavel folga/ausencia) — puxa a media para baixo.')
+if sem_apontamento:
+    visao.append(f'• Sem NENHUM apontamento no dia: {", ".join(sem_apontamento)} '
+                 f'(provavel folga/ausencia) — nao entra na media da equipe; confirmar disponibilidade.')
+if sub_registro:
+    visao.append('• Apontamento irrisorio (< 30 min): ' + ', '.join(sub_registro) +
+                 ' — provavel falha de registro.')
 y = block(fig, y, 'Visao geral', visao)
 
-pos = [f'• {len(ag)-len(ausentes)} de {len(ag)} agentes acima da meta: ' +
-       ', '.join(f"{n.split()[0]} {pct[n]:.0f}%" for n in sorted(ag, key=lambda k:-pct[k]) if ag[n]['min']>=30) + '.',
+acima = [n for n in presentes if pct[n] >= META_PCT]
+pos = [f'• {len(acima)} de {len(ESPERADOS)} agentes acima da meta: ' +
+       (', '.join(f"{n.split()[0]} {pct[n]:.0f}%" for n in sorted(acima, key=lambda k:-pct[k])) or 'nenhum') + '.',
        f'• Alta vazao de resolucao: {n_resolv} tickets em "20 - Resolvido".']
 pos.append('• ZERO reprovacoes de HML no dia — sem retrabalho de QA registrado.' if n_reprov == 0
            else f'• Atencao: {n_reprov} ticket(s) em status de reprovacao de HML (retrabalho).')
@@ -219,6 +249,13 @@ for n in sorted(ag, key=lambda k: -ag[k]['min']):
     else:
         linhas.append(f"• Aproveitamento de jornada: {pct[n]:.0f}% (meta {META_PCT}%).")
     y = block(fig, y, f"{n} — {fmt(a['min'])} · {a['tickets']} tickets", linhas)
+
+for n in sem_apontamento:
+    y = block(fig, y, f"{n} — AUSENTE", [
+        f"• Funcao: {funcao(n)}.",
+        "• Nenhum apontamento registrado no dia.",
+        "• Confirmar o motivo (folga/falta) e avaliar o impacto na fila de trabalho.",
+    ], cor=CINZA)
 pdf.savefig(fig); plt.close(fig)
 
 # ---- P4 Fluxo de status e voz do cliente ----
