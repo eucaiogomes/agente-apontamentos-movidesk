@@ -122,6 +122,34 @@ Recriar a tarefa agendada (se trocar de máquina): use os modelos do repositóri
   registra cada lançamento em `runner_launch.log`, o que torna falhas do agendador diagnosticáveis.
 - O `pythonw.exe` do gerenciador de Python do Windows não funciona sob o Agendador; use `python.exe`.
 
+## Aba "Extrator Obsidian" — tickets → Markdown
+
+O painel Mission Control tem duas abas: **Missões** (relatórios diários, acima) e **Extrator
+Obsidian**. O extrator (`scripts/extrator_obsidian.py`) puxa tickets pela **mesma API** (token
+`MOVIDESK_TOKEN`) e salva cada um como Markdown num Vault do Obsidian, uma pasta por cliente:
+
+    <destino>/<Cliente>/<ID> - <Assunto>.md
+
+Cada arquivo tem frontmatter (ticket, cliente, status, categoria, urgência, data, url) e o histórico
+de ações do ticket com o HTML convertido para Markdown (conversor stdlib, sem dependências extras).
+Destino padrão: `~/Downloads/CAIOSs/caios-data/movidesk-obsidian` (sobrescreva com a env var
+`EXTRATOR_OBSIDIAN_DIR` ou o campo "Destino" na aba). Subdomínio do link Movidesk: `MOVIDESK_SUBDOMAIN`
+(padrão `lectortec`).
+
+Dois modos (na aba ou por linha de comando):
+
+    python scripts/extrator_obsidian.py --range 9000 9200      # varre intervalo de IDs
+    python scripts/extrator_obsidian.py --ids 11284,11090      # lista específica
+    # opcional: --dest "C:\caminho\Vault"
+
+No modo `--range` ele para sozinho após **30 IDs seguidos sem ticket** (`LIMITE_MISS`). Progresso vai
+para `extrator_state.json` (lido pelo painel) e o log para `extrator_log.txt`, ambos na pasta de saída.
+
+API do servidor: `GET /api/extrator/status` (progresso ao vivo) e `POST /api/extrator/run`
+(`{"modo":"range","inicio":N,"fim":N}` ou `{"modo":"lista","ids":"1,2,3"}`, `dest` opcional; 409 se já
+houver extração rodando). Como no play das missões, os controles da aba só funcionam com o painel
+servido pelo `mission_server.py`.
+
 ## Notas de manutenção e armadilhas
 
 - A API é **ao vivo**: rodar em horários diferentes muda os números (apontamentos vão sendo lançados ao

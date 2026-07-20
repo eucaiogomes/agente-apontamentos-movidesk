@@ -24,7 +24,9 @@ skills/
       pipeline_movidesk.py        # coleta a API + gera PNGs + JSONs
       gerar_analise.py            # gera o PDF de análise a partir dos JSONs
       runner_diario.py            # missão completa p/ cron: pipeline + PDF + verificação + painel
-      mission_control.py          # gera o painel mission_control.html (dashboard + to-do)
+      mission_control.py          # gera o painel mission_control.html (abas Missões + Extrator)
+      mission_server.py           # serve o painel (PWA) + API de play das missões e do extrator
+      extrator_obsidian.py        # aba Extrator: puxa tickets pela API e salva Markdown por cliente (Obsidian)
     references/
       perfis_equipe.md            # perfis, jornadas, meta e regras de negócio
 ```

@@ -153,6 +153,25 @@ pre { color:var(--dim); font-size:12px; overflow-x:auto; }
 .pill.ok { color:var(--ok); border-color:var(--ok); }
 .pill.warn { color:var(--warn); border-color:var(--warn); animation:pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity:.45; } }
+.tabs { display:flex; gap:6px; border-bottom:1px solid var(--border); margin-bottom:18px; }
+.tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--dim);
+       font:700 12px ui-monospace,Consolas,monospace; letter-spacing:2px; text-transform:uppercase;
+       padding:9px 14px; cursor:pointer; }
+.tab:hover { color:var(--tx); }
+.tab.active { color:var(--ok); border-bottom-color:var(--ok); }
+.tabpane[hidden] { display:none; }
+.field { display:flex; flex-direction:column; gap:4px; }
+.field label { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+.field input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--tx);
+       font:13px ui-monospace,Consolas,monospace; padding:7px 9px; }
+.field input:focus { outline:none; border-color:var(--acc); }
+.row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; }
+.radio { display:flex; gap:16px; margin-bottom:6px; color:var(--tx); font-size:13px; }
+.radio label { display:flex; gap:6px; align-items:center; cursor:pointer; }
+.hint { color:var(--dim); font-size:12px; margin-bottom:12px; }
+.bar { height:8px; background:var(--bg); border:1px solid var(--border); border-radius:99px; overflow:hidden; margin:8px 0; }
+.bar > i { display:block; height:100%; width:0; background:var(--ok); transition:width .3s; }
+.statgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:10px; margin-top:10px; }
 """
 
 JS = """
@@ -206,6 +225,89 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   navigator.serviceWorker.register('/sw.js').catch(function () {});
 }
 poll();
+
+/* --- Abas --- */
+document.querySelectorAll('.tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
+    document.querySelectorAll('.tabpane').forEach(function (p) { p.hidden = true; });
+    t.classList.add('active');
+    document.getElementById('pane-' + t.dataset.tab).hidden = false;
+    localStorage.setItem('mc:tab', t.dataset.tab);
+  });
+});
+(function () {
+  var saved = localStorage.getItem('mc:tab');
+  var btn = saved && document.querySelector('.tab[data-tab="' + saved + '"]');
+  if (btn) btn.click();
+})();
+
+/* --- Extrator Obsidian (so ativo quando servido pelo mission_server.py) --- */
+var extRodou = false;
+function extToggleModo() {
+  var modo = (document.querySelector('input[name=ext-modo]:checked') || {}).value;
+  document.getElementById('ext-range-fields').style.display = modo === 'range' ? 'flex' : 'none';
+  document.getElementById('ext-lista-fields').style.display = modo === 'lista' ? 'flex' : 'none';
+}
+function extPinta(s) {
+  if (!s) return;
+  document.getElementById('extrator-ui').style.display = 'block';
+  var run = document.getElementById('ext-run');
+  var badge = document.getElementById('ext-badge');
+  var tot = s.total || 0, proc = s.processados || 0;
+  var pct = tot ? Math.round(proc * 100 / tot) : (s.running ? 50 : (proc ? 100 : 0));
+  document.getElementById('ext-progress').style.width = pct + '%';
+  document.getElementById('ext-salvos').textContent = s.salvos || 0;
+  document.getElementById('ext-vazios').textContent = s.vazios || 0;
+  document.getElementById('ext-erros').textContent = s.erros || 0;
+  document.getElementById('ext-proc').textContent = proc + (tot ? ' / ' + tot : '');
+  document.getElementById('ext-ultimo').textContent = s.ultimo_arquivo || (s.atual ? 'ticket ' + s.atual : '—');
+  if (s.dest_padrao && !document.getElementById('ext-dest').value) {
+    document.getElementById('ext-dest').placeholder = s.dest_padrao;
+  }
+  if (s.running) {
+    badge.textContent = 'EXTRAINDO' + (s.atual ? ' · ' + s.atual : '');
+    badge.className = 'pill warn';
+    run.disabled = true; extRodou = true;
+  } else {
+    badge.textContent = extRodou ? (s.mensagem || 'CONCLUIDO') : 'OCIOSO';
+    badge.className = 'pill ok';
+    run.disabled = false;
+  }
+}
+function extPoll() {
+  api('/api/extrator/status').then(function (s) {
+    if (s === null) { document.getElementById('extrator-ui').style.display = 'none'; return; }
+    extPinta(s);
+    setTimeout(extPoll, s.running ? 2000 : 12000);
+  });
+}
+function extRoda() {
+  var modo = (document.querySelector('input[name=ext-modo]:checked') || {}).value;
+  var body = { modo: modo, dest: document.getElementById('ext-dest').value.trim() };
+  if (modo === 'range') {
+    body.inicio = document.getElementById('ext-inicio').value;
+    body.fim = document.getElementById('ext-fim').value;
+  } else {
+    body.ids = document.getElementById('ext-ids').value;
+  }
+  var run = document.getElementById('ext-run');
+  run.disabled = true;
+  api('/api/extrator/run', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify(body) })
+    .then(function (r) {
+      if (r && r.ok) { extRodou = true; extPoll(); }
+      else { alert((r && r.erro) || 'Falha ao iniciar extracao'); run.disabled = false; }
+    });
+}
+if (document.getElementById('ext-run')) {
+  document.querySelectorAll('input[name=ext-modo]').forEach(function (r) {
+    r.addEventListener('change', extToggleModo);
+  });
+  document.getElementById('ext-run').addEventListener('click', extRoda);
+  extToggleModo();
+  extPoll();
+}
 """
 
 def _passos_html(steps):
@@ -321,6 +423,10 @@ def build():
            '&#9654; RODAR MISSAO</button><span id="run-status" class="pill">&hellip;</span></div>'
            f'<div class="meta">gerado {gerado} &middot; agendado seg&ndash;sex 09:00 '
            '(tarefa RelatoriosMovideskDiario) &middot; auto-refresh 5 min</div></header>'
+           '<div class="tabs">'
+           '<button class="tab active" data-tab="missoes">Missoes</button>'
+           '<button class="tab" data-tab="extrator">Extrator Obsidian</button></div>'
+           '<div id="pane-missoes" class="tabpane">'
            '<div class="grid">'
            f'<div class="card"><div class="l">Status</div><div class="v {cls_geral}">{estado_geral}</div></div>'
            f'<div class="card"><div class="l">Ultimo dia com dados</div><div class="v">{data_ref}</div></div>'
@@ -336,6 +442,36 @@ def build():
            f'<section><h2>To-do &mdash; pendencias do dia {data_ref}</h2><ul class="todo">'
            + ''.join(todo_html) + '</ul></section>'
            '<section><h2>Log do runner</h2><pre>' + h(log_tail or '(sem execucoes registradas ainda)') + '</pre></section>'
+           '</div>'  # fim pane-missoes
+           '<div id="pane-extrator" class="tabpane" hidden>'
+           '<section><h2>Extrator Movidesk &rarr; Obsidian</h2>'
+           '<div class="hint">Puxa tickets pela API do Movidesk e salva cada um como Markdown '
+           'em <code>&lt;destino&gt;/&lt;Cliente&gt;/&lt;ID&gt; - &lt;Assunto&gt;.md</code>. '
+           'Os controles so funcionam com o painel servido pelo mission_server.py.</div>'
+           '<div id="extrator-ui" style="display:none">'
+           '<div class="radio">'
+           '<label><input type="radio" name="ext-modo" value="range" checked> Intervalo de IDs</label>'
+           '<label><input type="radio" name="ext-modo" value="lista"> Lista de IDs</label></div>'
+           '<div class="row" id="ext-range-fields">'
+           '<div class="field"><label>ID inicial</label><input id="ext-inicio" type="number" value="9000"></div>'
+           '<div class="field"><label>ID final</label><input id="ext-fim" type="number" value="9200"></div>'
+           '</div>'
+           '<div class="row" id="ext-lista-fields" style="display:none">'
+           '<div class="field" style="flex:1"><label>IDs (separados por virgula)</label>'
+           '<input id="ext-ids" type="text" placeholder="11284, 11090, 9644"></div></div>'
+           '<div class="row"><div class="field" style="flex:1"><label>Destino (deixe vazio p/ padrao)</label>'
+           '<input id="ext-dest" type="text"></div>'
+           '<button id="ext-run" class="btn">&#9654; EXTRAIR</button>'
+           '<span id="ext-badge" class="pill">&hellip;</span></div>'
+           '<div class="bar"><i id="ext-progress"></i></div>'
+           '<div class="statgrid">'
+           '<div class="card"><div class="l">Processados</div><div class="v" id="ext-proc" style="font-size:18px">0</div></div>'
+           '<div class="card"><div class="l">Salvos</div><div class="v ok" id="ext-salvos" style="font-size:18px">0</div></div>'
+           '<div class="card"><div class="l">Inexistentes</div><div class="v" id="ext-vazios" style="font-size:18px">0</div></div>'
+           '<div class="card"><div class="l">Erros</div><div class="v err" id="ext-erros" style="font-size:18px">0</div></div>'
+           '</div>'
+           '<div class="meta" style="margin-top:10px">Ultimo: <span id="ext-ultimo">&mdash;</span></div>'
+           '</div></section></div>'  # fim extrator-ui + section + pane-extrator
            f'<script>{JS}</script></body></html>')
 
     os.makedirs(SAIDA, exist_ok=True)

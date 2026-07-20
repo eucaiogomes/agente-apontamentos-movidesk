@@ -16,7 +16,7 @@ Uso: python mission_server.py [porta]   (padrao 8765; bind so em 127.0.0.1)
 Se a porta ja estiver em uso, assume que o servidor ja esta rodando e sai com 0
 (o autostart no logon fica idempotente).
 """
-import os, sys, json, threading, subprocess
+import os, sys, re, json, threading, subprocess
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -44,6 +44,11 @@ SW = (b"self.addEventListener('install',function(e){self.skipWaiting();});"
 
 _lock = threading.Lock()
 _run = {'proc': None, 'date': None, 'inicio': None}
+_ext = {'proc': None, 'modo': None, 'inicio': None}
+EXT_STATE = os.path.join(SAIDA, 'extrator_state.json')
+DEST_OBSIDIAN = os.environ.get(
+    'EXTRATOR_OBSIDIAN_DIR',
+    os.path.join(os.path.expanduser('~'), 'Downloads', 'CAIOSs', 'caios-data', 'movidesk-obsidian'))
 
 def log_srv(msg):
     linha = f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {msg}'
@@ -56,6 +61,10 @@ def log_srv(msg):
 
 def rodando():
     p = _run['proc']
+    return p is not None and p.poll() is None
+
+def ext_rodando():
+    p = _ext['proc']
     return p is not None and p.poll() is None
 
 def gera_icones():
@@ -113,6 +122,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({'running': rodando(), 'date': _run['date'],
                                'inicio': _run['inicio'], 'log': log_tail,
                                'atualizado': mc.carrega_estado().get('atualizado')})
+        if self.path == '/api/extrator/status':
+            estado = {}
+            if os.path.exists(EXT_STATE):
+                try:
+                    estado = json.load(open(EXT_STATE, encoding='utf-8'))
+                except (OSError, ValueError):
+                    pass
+            estado['running'] = ext_rodando()
+            estado['dest_padrao'] = DEST_OBSIDIAN
+            return self._json(estado)
         if self.path == '/manifest.json':
             return self._bytes(MANIFEST, 'application/manifest+json')
         if self.path == '/sw.js':
@@ -120,13 +139,15 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        if self.path != '/api/run':
+        if self.path not in ('/api/run', '/api/extrator/run'):
             return self.send_error(404)
         try:
             n = int(self.headers.get('Content-Length') or 0)
             corpo = json.loads(self.rfile.read(n) or b'{}') if n else {}
         except (ValueError, json.JSONDecodeError):
             corpo = {}
+        if self.path == '/api/extrator/run':
+            return self._extrator_run(corpo)
         data_str = corpo.get('date') or mc.dia_util_anterior().isoformat()
         with _lock:
             if rodando():
@@ -141,6 +162,39 @@ class Handler(SimpleHTTPRequestHandler):
             _run['inicio'] = datetime.now().isoformat(timespec='seconds')
         log_srv(f'play recebido: missao {data_str} disparada (pid {_run["proc"].pid})')
         return self._json({'ok': True, 'date': data_str})
+
+    def _extrator_run(self, corpo):
+        modo = (corpo.get('modo') or '').strip()
+        dest = (corpo.get('dest') or '').strip() or DEST_OBSIDIAN
+        if modo == 'range':
+            try:
+                inicio, fim = int(corpo.get('inicio')), int(corpo.get('fim'))
+            except (TypeError, ValueError):
+                return self._json({'ok': False, 'erro': 'informe inicio e fim numericos'}, 400)
+            args = ['--range', str(inicio), str(fim)]
+            rotulo = f'range {inicio}-{fim}'
+        elif modo == 'lista':
+            ids = re.sub(r'[^0-9,\s]', '', corpo.get('ids') or '').strip()
+            if not ids:
+                return self._json({'ok': False, 'erro': 'informe ao menos um ID'}, 400)
+            args = ['--ids', ids]
+            rotulo = f'ids {ids[:40]}'
+        else:
+            return self._json({'ok': False, 'erro': "modo deve ser 'range' ou 'lista'"}, 400)
+
+        with _lock:
+            if ext_rodando():
+                return self._json({'ok': False, 'erro': 'extracao ja em execucao'}, 409)
+            log_saida = open(os.path.join(SAIDA, 'extrator_launch.log'), 'ab')
+            _ext['proc'] = subprocess.Popen(
+                [sys.executable, os.path.join(SCRIPTS, 'extrator_obsidian.py'),
+                 '--dest', dest, *args],
+                cwd=SCRIPTS, stdout=log_saida, stderr=subprocess.STDOUT,
+                creationflags=CREATE_NO_WINDOW)
+            _ext['modo'] = modo
+            _ext['inicio'] = datetime.now().isoformat(timespec='seconds')
+        log_srv(f'extrator disparado: {rotulo} -> {dest} (pid {_ext["proc"].pid})')
+        return self._json({'ok': True, 'modo': modo})
 
 def main():
     os.makedirs(SAIDA, exist_ok=True)
