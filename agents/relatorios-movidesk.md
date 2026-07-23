@@ -16,12 +16,17 @@ Tudo mora na skill `relatorios-movidesk`:
     ~/.claude/skills/relatorios-movidesk\
       scripts\pipeline_movidesk.py   (coleta API + PNGs + JSONs)
       scripts\gerar_analise.py       (PDF de análise, 4 páginas)
-      scripts\runner_diario.py       (missão completa: pipeline + PDF + verificação + painel)
+      scripts\runner_diario.py       (missão completa: pipeline + PDF + verificação + painel + envio zap)
       scripts\mission_control.py     (gera o painel mission_control.html)
+      scripts\enviar_whatsapp.py     (envia os PNGs ao grupo do WhatsApp via Evolution API)
       references\perfis_equipe.md    (perfis, jornadas, meta, regras de negócio)
       SKILL.md                       (instruções completas)
 
 O fluxo roda sozinho seg–sex às 09:00 (tarefa do Windows `RelatoriosMovideskDiario` → runner_diario.py).
+Ao final de cada missão, o runner **envia sozinho** os PNGs ao grupo do WhatsApp *Registro de
+apontamentos* (Evolution API, container Docker no VPS iniciado via SSH): um PNG por agente marcando
+a pessoa (`@num <pct>% Relatorio Geral <dd/mm>`) e o dashboard da equipe marcando todos. Ligado por
+`ENVIAR_WHATSAPP=1` no `.env`; números em `whatsapp_agentes.json`. Ver secção própria no SKILL.md.
 A aplicação Mission Control fica em **http://localhost:8765** (mission_server.py, sempre de pé via
 pasta Inicializar + tarefa `RelatoriosMovideskServer` 08:50): painel com missões OK/FALHA/PENDENTE,
 pendências do dia, log, e botão ▶ para disparar missões (`POST /api/run`, `GET /api/status`).

@@ -22,3 +22,7 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# WhatsApp (dados pessoais / logs)
+whatsapp_agentes.json
+whatsapp_log.txt

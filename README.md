@@ -27,6 +27,7 @@ skills/
       mission_control.py          # gera o painel mission_control.html (abas Missões + Extrator)
       mission_server.py           # serve o painel (PWA) + API de play das missões e do extrator
       extrator_obsidian.py        # aba Extrator: puxa tickets pela API e salva Markdown por cliente (Obsidian)
+      enviar_whatsapp.py          # envia os PNGs ao grupo do WhatsApp (Evolution API) ao fim da missão
     references/
       perfis_equipe.md            # perfis, jornadas, meta e regras de negócio
 ```

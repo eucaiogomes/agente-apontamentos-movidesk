@@ -98,6 +98,19 @@ def main():
     resumo_txt = (f'{mc.fmt(met["total_min"])} | meta {met["pct"]}% | {met["tickets"]} tickets | '
                   f'ausentes: {", ".join(met["ausentes"]) or "nenhum"}') if met else 'sem metricas'
     log(f'=== Missao {data_str}: {status.upper()} ({resumo_txt}) | painel: {painel} ===')
+
+    # Envio ao WhatsApp (Evolution API) — so se os PNGs sairam; nunca derruba a missao.
+    if steps['pngs']:
+        try:
+            r = subprocess.run([sys.executable, os.path.join(SCRIPTS, 'enviar_whatsapp.py'), data_str],
+                               capture_output=True, text=True, encoding='utf-8',
+                               errors='replace', timeout=600)
+            for linha in (r.stdout or '').strip().splitlines():
+                if 'resumo envio' in linha or 'FALHA' in linha or 'desligado' in linha:
+                    log(linha)
+        except Exception as e:
+            log(f'aviso: envio ao WhatsApp falhou ({e}) — missao segue OK')
+
     sys.exit(0 if status == 'ok' else 1)
 
 if __name__ == '__main__':

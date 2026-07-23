@@ -150,6 +150,42 @@ API do servidor: `GET /api/extrator/status` (progresso ao vivo) e `POST /api/ext
 houver extração rodando). Como no play das missões, os controles da aba só funcionam com o painel
 servido pelo `mission_server.py`.
 
+## Envio automático ao WhatsApp (Evolution API)
+
+Ao final de **toda missão** (cron 09:00 e botão RODAR MISSÃO), o `runner_diario.py` chama
+`scripts/enviar_whatsapp.py`, que manda os relatórios ao grupo do WhatsApp *Registro de apontamentos*:
+
+- **um PNG por agente** que trabalhou, marcando a pessoa, com legenda `@<num> <pct>% Relatorio Geral <dd/mm>`
+  (o WhatsApp renderiza `@<num>` como o nome salvo do contato). O `<pct>` é `min ÷ jornada × 100`;
+- ao final, o **dashboard da equipe** (`Equipe_<data>.png`) marcando todos, com legenda
+  `@... Relatorio Geral da Equipe <dd/mm> — meta <pct>%`.
+
+A Evolution API roda num **VPS via Docker** e é acessada por **túnel SSH**; antes de enviar, o script
+garante o container de pé (`docker start`, idempotente). O envio **nunca derruba a missão**: se o
+WhatsApp/Evolution falhar, só registra o aviso em `whatsapp_log.txt` e a missão segue OK.
+
+Config no `.env` da skill (a `EVOLUTION_KEY` é segredo — fica fora do repo, como o `MOVIDESK_TOKEN`):
+
+    EVOLUTION_SSH=root@2.25.71.207
+    EVOLUTION_BASE=http://127.0.0.1:36721
+    EVOLUTION_KEY=<apikey>
+    EVOLUTION_INSTANCE=Whatsapp lector
+    EVOLUTION_GROUP=120363041106999402@g.us
+    EVOLUTION_CONTAINER=evolution-api-gi8t-api-1
+    ENVIAR_WHATSAPP=1        # 0/vazio desliga o envio
+
+Mapa nome→número em `whatsapp_agentes.json` na raiz da skill (dado pessoal, **fora do repo**). Use o
+**JID legado** (o WhatsApp dropa o 9 de celulares antigos); confira contra os participantes reais do
+grupo (`GET /group/participants/<instance>?groupJid=<jid>`). Rodar manualmente / testar:
+
+    python scripts/enviar_whatsapp.py [AAAA-MM-DD] --dry-run          # mostra o payload, não envia
+    python scripts/enviar_whatsapp.py [AAAA-MM-DD] --so Guilherme     # envia só um agente (teste)
+    python scripts/enviar_whatsapp.py [AAAA-MM-DD] --sem-geral        # pula o dashboard da equipe
+
+Rota usada: `POST /message/sendMedia/<instance>` com `media` em base64 puro, `caption` e
+`mentioned:[<jid>@s.whatsapp.net]`. A instância `Whatsapp lector` precisa estar `open`
+(`GET /instance/fetchInstances`).
+
 ## Notas de manutenção e armadilhas
 
 - A API é **ao vivo**: rodar em horários diferentes muda os números (apontamentos vão sendo lançados ao
